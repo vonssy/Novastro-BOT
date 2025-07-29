@@ -1,3 +1,5 @@
+import os
+import json
 from web3 import Web3
 from web3.exceptions import TransactionNotFound
 from eth_utils import to_hex
@@ -8,8 +10,9 @@ from aiohttp_socks import ProxyConnector
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
-import asyncio, random, string, json, re, os, pytz
+import asyncio, random, string, re, os, pytz
 
+# Inisialisasi zona waktu WIB
 wib = pytz.timezone('Asia/Jakarta')
 
 class Novastro:
@@ -50,6 +53,35 @@ class Novastro:
         {Fore.GREEN + Style.BRIGHT}Rey? {Fore.YELLOW + Style.BRIGHT}<INI WATERMARK>
             """
         )
+
+    def generate_wallet(self):
+        """Generate a new Ethereum wallet with mnemonic"""
+        Account.enable_unaudited_hdwallet_features()
+        account, mnemonic = Account.create_with_mnemonic()
+        return {
+            "private_key": account.key.hex(),
+            "address": account.address,
+            "mnemonic": mnemonic
+        }
+
+    def save_wallets(self, wallets):
+        """Save wallets to wallets.json"""
+        try:
+            with open('wallets.json', 'w') as f:
+                json.dump(wallets, f, indent=4)
+            self.log(f"{Fore.GREEN + Style.BRIGHT}Wallets saved to wallets.json{Style.RESET_ALL}")
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed to save wallets: {e}{Style.RESET_ALL}")
+
+    def save_private_keys(self, wallets):
+        """Save private keys to accounts.txt"""
+        try:
+            with open('accounts.txt', 'w') as f:
+                for wallet in wallets:
+                    f.write(wallet['private_key'] + '\n')
+            self.log(f"{Fore.GREEN + Style.BRIGHT}Private keys saved to accounts.txt{Style.RESET_ALL}")
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed to save private keys: {e}{Style.RESET_ALL}")
 
     def format_seconds(self, seconds):
         hours, remainder = divmod(seconds, 3600)
@@ -134,7 +166,6 @@ class Novastro:
         try:
             account = Account.from_key(account)
             address = account.address
-            
             return address
         except Exception as e:
             return None
@@ -998,16 +1029,35 @@ class Novastro:
     
     async def process_claim_faucet(self, account: str, address: str, use_proxy: bool): 
         faucet = await self.faucet_status(address, use_proxy)
-        if not faucet: return False
+        if not faucet:
+            self.log(
+                f"{Fore.MAGENTA+Style.BRIGHT} ● {Style.RESET_ALL}"
+                f"{Fore.CYAN+Style.BRIGHT}Message :{Style.RESET_ALL}"
+                f"{Fore.RED+Style.BRIGHT} Could not check faucet status. Skipping claim. {Style.RESET_ALL}"
+            )
+            return
 
         can_claim = faucet["profile"]["canClaimNow"]
         if not can_claim: 
-            self.log(
-                f"{Fore.MAGENTA+Style.BRIGHT} ● {Style.RESET_ALL}"
-                f"{Fore.CYAN+Style.BRIGHT}Status  :{Style.RESET_ALL}"
-                f"{Fore.YELLOW+Style.BRIGHT} Already Claimed {Style.RESET_ALL}"
-            )
-            return False
+            try:
+                next_claim_time_iso = faucet["profile"]["nextClaimTime"]
+                # Ubah string ISO 8601 ke objek datetime, tangani 'Z' untuk UTC
+                next_claim_dt = datetime.fromisoformat(next_claim_time_iso.replace("Z", "+00:00"))
+                # Konversi ke zona waktu lokal (WIB)
+                next_claim_wib = next_claim_dt.astimezone(wib)
+                
+                self.log(
+                    f"{Fore.MAGENTA+Style.BRIGHT} ● {Style.RESET_ALL}"
+                    f"{Fore.CYAN+Style.BRIGHT}Status  :{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} Already claimed. Next claim at: {next_claim_wib.strftime('%d-%m-%Y %H:%M:%S %Z')} {Style.RESET_ALL}"
+                )
+            except (KeyError, TypeError):
+                self.log(
+                    f"{Fore.MAGENTA+Style.BRIGHT} ● {Style.RESET_ALL}"
+                    f"{Fore.CYAN+Style.BRIGHT}Status  :{Style.RESET_ALL}"
+                    f"{Fore.YELLOW+Style.BRIGHT} Already claimed. {Style.RESET_ALL}"
+                )
+            return
         
         self.log(
             f"{Fore.MAGENTA+Style.BRIGHT} ● {Style.RESET_ALL}"
@@ -1016,7 +1066,7 @@ class Novastro:
         )
 
         prepare = await self.prepare_claim_faucet(address, use_proxy)
-        if not prepare: return False
+        if not prepare: return
 
         event_id = prepare["data"]["transactionEventId"]
         to_address = prepare["data"]["payload"]["to"]
@@ -1033,10 +1083,10 @@ class Novastro:
         )
 
         tx_hash = await self.process_perform_transactions(account, address, to_address, calldata, "0", "300000", "Mint", use_proxy)
-        if not tx_hash: return False
+        if not tx_hash: return
 
         submit = await self.submit_claim_faucet(address, event_id, tx_hash, use_proxy)
-        if not submit: return False
+        if not submit: return
 
         self.log(
             f"{Fore.CYAN+Style.BRIGHT}   Message :{Style.RESET_ALL}"
@@ -1045,7 +1095,7 @@ class Novastro:
     
     async def process_purchase_property(self, account: str, address: str, use_proxy: bool): 
         property_lists = await self.list_properties(address, use_proxy)
-        if not property_lists: return False
+        if not property_lists: return
 
         properties = property_lists["data"]["properties"]
 
@@ -1060,7 +1110,7 @@ class Novastro:
                 f"{Fore.CYAN+Style.BRIGHT}Message :{Style.RESET_ALL}"
                 f"{Fore.YELLOW+Style.BRIGHT} No Avaialble Tokenized Properties {Style.RESET_ALL}"
             )
-            return False
+            return
         
         for i in range(self.purchase_count):
             self.log(
@@ -1185,80 +1235,98 @@ class Novastro:
             
     async def main(self):
         try:
-            with open('accounts.txt', 'r') as file:
-                accounts = [line.strip() for line in file if line.strip()]
+            self.clear_terminal()
+            self.welcome()
+            
+            if not os.path.exists('images'):
+                os.makedirs('images')
+                
+            if not os.path.exists('accounts.txt'):
+                self.log(f"{Fore.YELLOW+Style.BRIGHT}accounts.txt not found. Generating new wallets...{Style.RESET_ALL}")
+                try:
+                    num_wallets = int(input(f"{Fore.YELLOW + Style.BRIGHT}Enter number of wallets to generate: {Style.RESET_ALL}"))
+                except ValueError:
+                    self.log(f"{Fore.RED}Invalid input. Please enter a number.{Style.RESET_ALL}")
+                    return
+
+                wallets = []
+                for i in range(num_wallets):
+                    wallet = self.generate_wallet()
+                    wallets.append(wallet)
+                    self.log(
+                        f"{Fore.GREEN+Style.BRIGHT}Generated wallet {i+1}/{num_wallets}: {Style.RESET_ALL}"
+                        f"{Fore.WHITE+Style.BRIGHT}{wallet['address']}{Style.RESET_ALL}"
+                    )
+
+                self.save_wallets(wallets)
+                self.save_private_keys(wallets)
+                accounts = [wallet['private_key'] for wallet in wallets]
+            else:
+                with open('accounts.txt', 'r') as file:
+                    accounts = [line.strip() for line in file if line.strip()]
             
             use_proxy_choice, rotate_proxy = self.print_question()
 
-            while True:
-                use_proxy = False
-                if use_proxy_choice in [1, 2]:
-                    use_proxy = True
+            self.log(
+                f"{Fore.GREEN + Style.BRIGHT}Account's Total: {Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT}{len(accounts)}{Style.RESET_ALL}"
+            )
 
-                self.clear_terminal()
-                self.welcome()
-                self.log(
-                    f"{Fore.GREEN + Style.BRIGHT}Account's Total: {Style.RESET_ALL}"
-                    f"{Fore.WHITE + Style.BRIGHT}{len(accounts)}{Style.RESET_ALL}"
-                )
-
-                if use_proxy:
-                    await self.load_proxies(use_proxy_choice)
+            if use_proxy_choice in [1, 2]:
+                await self.load_proxies(use_proxy_choice)
                 
-                separator = "=" * 25
-                for account in accounts:
-                    if account:
-                        address = self.generate_address(account)
+            separator = "=" * 25
+            for account in accounts:
+                if account:
+                    address = self.generate_address(account)
 
-                        self.log(
-                            f"{Fore.CYAN + Style.BRIGHT}{separator}[{Style.RESET_ALL}"
-                            f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(address)} {Style.RESET_ALL}"
-                            f"{Fore.CYAN + Style.BRIGHT}]{separator}{Style.RESET_ALL}"
-                        )
-
-                        if not address:
-                            self.log(
-                                f"{Fore.CYAN + Style.BRIGHT}Status  :{Style.RESET_ALL}"
-                                f"{Fore.RED + Style.BRIGHT} Invalid Private Key or Library Version Not Supported {Style.RESET_ALL}"
-                            )
-                            continue
-
-                        self.USER_AGENT[address] = FakeUserAgent().random
-
-                        self.HEADERS[address] = {
-                            "Accept": "application/json, text/plain, */*",
-                            "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
-                            "Connection": "keep-alive",
-                            "Host": "api.deperp.xyz",
-                            "Origin": "https://testnet.novastro.xyz",
-                            "Referer": "https://testnet.novastro.xyz/",
-                            "Sec-Fetch-Dest": "empty",
-                            "Sec-Fetch-Mode": "cors",
-                            "Sec-Fetch-Site": "cross-site",
-                            "User-Agent": self.USER_AGENT[address]
-                        }
-
-                        await self.process_accounts(account, address, use_proxy, rotate_proxy)
-                        await asyncio.sleep(3)
-
-                self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*72)
-                seconds = 24 * 60 * 60
-                while seconds > 0:
-                    formatted_time = self.format_seconds(seconds)
-                    print(
-                        f"{Fore.CYAN+Style.BRIGHT}[ Wait for{Style.RESET_ALL}"
-                        f"{Fore.WHITE+Style.BRIGHT} {formatted_time} {Style.RESET_ALL}"
-                        f"{Fore.CYAN+Style.BRIGHT}... ]{Style.RESET_ALL}"
-                        f"{Fore.WHITE+Style.BRIGHT} | {Style.RESET_ALL}"
-                        f"{Fore.BLUE+Style.BRIGHT}All Accounts Have Been Processed.{Style.RESET_ALL}",
-                        end="\r"
+                    self.log(
+                        f"{Fore.CYAN + Style.BRIGHT}{separator}[{Style.RESET_ALL}"
+                        f"{Fore.WHITE + Style.BRIGHT} {self.mask_account(address)} {Style.RESET_ALL}"
+                        f"{Fore.CYAN + Style.BRIGHT}]{separator}{Style.RESET_ALL}"
                     )
-                    await asyncio.sleep(1)
-                    seconds -= 1
 
-        except FileNotFoundError:
-            self.log(f"{Fore.RED}File 'accounts.txt' Not Found.{Style.RESET_ALL}")
-            return
+                    if not address:
+                        self.log(
+                            f"{Fore.CYAN + Style.BRIGHT}Status  :{Style.RESET_ALL}"
+                            f"{Fore.RED + Style.BRIGHT} Invalid Private Key or Library Version Not Supported {Style.RESET_ALL}"
+                        )
+                        continue
+
+                    self.USER_AGENT[address] = FakeUserAgent().random
+
+                    self.HEADERS[address] = {
+                        "Accept": "application/json, text/plain, */*",
+                        "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+                        "Connection": "keep-alive",
+                        "Host": "api.deperp.xyz",
+                        "Origin": "https://testnet.novastro.xyz",
+                        "Referer": "https://testnet.novastro.xyz/",
+                        "Sec-Fetch-Dest": "empty",
+                        "Sec-Fetch-Mode": "cors",
+                        "Sec-Fetch-Site": "cross-site",
+                        "User-Agent": self.USER_AGENT[address]
+                    }
+
+                    use_proxy = use_proxy_choice in [1, 2]
+                    await self.process_accounts(account, address, use_proxy, rotate_proxy)
+                    await asyncio.sleep(3)
+
+            self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*72)
+            seconds = 24 * 60 * 60
+            while seconds > 0:
+                formatted_time = self.format_seconds(seconds)
+                print(
+                    f"{Fore.CYAN+Style.BRIGHT}[ Wait for{Style.RESET_ALL}"
+                    f"{Fore.WHITE+Style.BRIGHT} {formatted_time} {Style.RESET_ALL}"
+                    f"{Fore.CYAN+Style.BRIGHT}... ]{Style.RESET_ALL}"
+                    f"{Fore.WHITE+Style.BRIGHT} | {Style.RESET_ALL}"
+                    f"{Fore.BLUE+Style.BRIGHT}All Accounts Have Been Processed.{Style.RESET_ALL}",
+                    end="\r"
+                )
+                await asyncio.sleep(1)
+                seconds -= 1
+
         except Exception as e:
             self.log(f"{Fore.RED+Style.BRIGHT}Error: {e}{Style.RESET_ALL}")
             raise e
@@ -1269,7 +1337,7 @@ if __name__ == "__main__":
         asyncio.run(bot.main())
     except KeyboardInterrupt:
         print(
-            f"{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
+            f"\n{Fore.CYAN + Style.BRIGHT}[ {datetime.now().astimezone(wib).strftime('%x %X %Z')} ]{Style.RESET_ALL}"
             f"{Fore.WHITE + Style.BRIGHT} | {Style.RESET_ALL}"
-            f"{Fore.RED + Style.BRIGHT}[ EXIT ] Novastro Ignition - BOT{Style.RESET_ALL}                                       "                              
+            f"{Fore.RED + Style.BRIGHT}[ EXIT ] Novastro Ignition - BOT{Style.RESET_ALL}"                              
         )

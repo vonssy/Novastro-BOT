@@ -1,85 +1,95 @@
-# Novastro Ignition BOT
-Novastro Ignition BOT
+# Novastro BOT
 
-- Register Here : [Novastro Ignition](https://testnet.novastro.xyz/)
-- Connect New EVM Wallet
-- Go to Profile & Complete KYC
+Automate tasks on the Novastro platform with this advanced Python bot. The bot can generate wallets, perform KYC verification, claim faucets, and purchase properties automatically.
+
 
 ## Features
 
-  - Auto Get Account Information
-  - Auto Run With [Proxyscrape Free Proxy](https://proxyscrape.com/free-proxy-list) - `Choose 1`
-  - Auto Run With Private Proxy - `Choose 2`
-  - Auto Run Without Proxy - `Choose 3`
-  - Auto Rotate Invalid Proxies - `y` or `n`
-  - Auto Submit KYC Verification
-  - Auto Claim USDC Faucet
-  - Auto Purchase Properties
-  - Multi Accounts
+- 🪪 **Wallet Generation**: Create new Ethereum wallets with mnemonic phrases
+- 🔐 **Secure Storage**: Save wallet information to `wallets.json` and private keys to `accounts.txt`
+- 📝 **KYC Automation**: Complete KYC verification with AI-generated documents
+- 💧 **Faucet Claiming**: Automatically claim faucet rewards
+- 🏠 **Property Purchase**: Purchase tokenized properties on the platform
+- 🔁 **Proxy Support**: Rotate proxies to avoid rate limiting
+- 📊 **Real-time Logging**: Color-coded terminal output with timestamps
 
-## Requiremnets
+## Requirements
 
-- Make sure you have Python3.9 or higher installed and pip.
-- Sepolia ETH Faucet
+- Python 3.8+
+- pip package manager
 
-## Instalation
+## Installation
 
-1. **Clone The Repositories:**
-   ```bash
-   git clone https://github.com/vonssy/Novastro-BOT.git
-   ```
-   ```bash
-   cd Novastro-BOT
-   ```
+1. Clone the repository:
+```bash
+git clone https://github.com/dicoderin/Novastro-BOT.git
+cd Novastro-BOT
+```
 
-2. **Install Requirements:**
-   ```bash
-   pip install -r requirements.txt #or pip3 install -r requirements.txt
-   ```
-
-### Note: Check your web3, eth-account, and eth-utils library version first. If not same with version in requirements.txt, u must uninstall that library.
-- **Check Library Version**
-  ```bash
-    pip show libary_name
-  ```
-- **Uninstall Library**
-  ```bash
-    pip uninstall libary_name
-  ```
-- **Install Library With Version**
-  ```bash
-    pip install libary_name==version
-  ```
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
 ## Configuration
 
-- **accounts.txt:** You will find the file `accounts.txt` inside the project directory. Make sure `accounts.txt` contains data that matches the format expected by the script. Here are examples of file formats:
-  ```bash
-    your_private_key_1
-    your_private_key_2
-  ```
+1. **Proxy Setup** (Optional):
+   - Create a `proxy.txt` file with your proxies (one per line)
+   - Or let the bot fetch free proxies automatically
 
-- **proxy.txt:** You will find the file `proxy.txt` inside the project directory. Make sure `proxy.txt` contains data that matches the format expected by the script. Here are examples of file formats:
-  ```bash
-    ip:port # Default Protcol HTTP.
-    protocol://ip:port
-    protocol://user:pass@ip:port
-  ```
+2. **Image Directory**:
+   - The bot will automatically create an `images` directory for KYC documents
 
-## Run
+## Usage
 
+Run the bot:
 ```bash
-python bot.py #or python3 bot.py
+python main.py
 ```
 
-## Buy Me a Coffee
+The bot will guide you through:
+1. Wallet generation (if no accounts.txt exists)
+2. Proxy configuration options
+3. Auto KYC verification setting
+4. Property purchase count selection
 
-- **EVM:** 0xe3c9ef9a39e9eb0582e5b147026cae524338521a
-- **TON:** UQBEFv58DC4FUrGqinBB5PAQS7TzXSm5c1Fn6nkiet8kmehB
-- **SOL:** E1xkaJYmAFEj28NPHKhjbf7GcvfdjKdvXju8d8AeSunf
-- **SUI:** 0xa03726ecbbe00b31df6a61d7a59d02a7eedc39fe269532ceab97852a04cf3347
+## Workflow
 
-Thank you for visiting this repository, don't forget to contribute in the form of follows and stars.
-If you have questions, find an issue, or have suggestions for improvement, feel free to contact me or open an *issue* in this GitHub repository.
+1. **Wallet Generation**:
+   - Creates new Ethereum wallets
+   - Saves mnemonic phrases to `wallets.json`
+   - Saves private keys to `accounts.txt`
 
-**vonssy**
+2. **Account Processing**:
+   - Logs in to Novastro platform
+   - Checks KYC status
+   - Automates KYC verification if enabled
+   - Claims faucet rewards
+   - Purchases tokenized properties
+
+## File Structure
+
+```
+Novastro-BOT/
+├── main.py              # Main bot script
+├── wallets.json         # Generated wallet data (mnemonics, addresses)
+├── accounts.txt         # Private keys (one per line)
+├── proxy.txt            # Custom proxies (optional)
+├── images/              # KYC document storage
+├── requirements.txt     # Python dependencies
+└── README.md            # This documentation
+```
+
+## Contribution
+
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## Disclaimer
+
+This bot is for educational purposes only. Use it at your own risk. The developers are not responsible for any account restrictions or financial losses incurred while using this bot.
