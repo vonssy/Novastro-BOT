@@ -10,7 +10,7 @@ from aiohttp_socks import ProxyConnector
 from fake_useragent import FakeUserAgent
 from datetime import datetime
 from colorama import *
-import asyncio, random, string, re, os, pytz, secrets
+import asyncio, random, string, re, os, pytz, secrets, binascii
 
 wib = pytz.timezone('Asia/Jakarta')
 
@@ -56,12 +56,14 @@ class Novastro:
     def generate_wallet(self):
         """Generate a new Ethereum wallet with mnemonic"""
         Account.enable_unaudited_hdwallet_features()
-        mnemonic = secrets.token_hex(16)  # Generate random entropy
-        account = Account.create_with_mnemonic(mnemonic=mnemonic)
+        # Generate random entropy
+        entropy = secrets.token_bytes(16)
+        # Create account with mnemonic
+        account, mnemonic = Account.create_with_mnemonic(entropy=entropy)
         return {
-            "private_key": account[0].key.hex(),
-            "address": account[0].address,
-            "mnemonic": account[1]
+            "private_key": account.key.hex(),
+            "address": account.address,
+            "mnemonic": mnemonic
         }
 
     def save_wallets(self, wallets):
